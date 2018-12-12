@@ -1,0 +1,1 @@
+*/5 * * * * cd wnt-relay; node check_daemon.js 1>>~/.config/wnt-relay/check_daemon.log 2>>~/.config/wnt-relay/check_daemon.err

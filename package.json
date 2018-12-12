@@ -1,0 +1,40 @@
+{
+  "name": "wnt-explorer",
+  "description": "wnt explorer",
+  "author": "wnt",
+  "version": "0.1.0",
+  "main": "start.js",
+  "keywords": [
+    "explorer",
+    "wnt",
+    "full node"
+  ],
+  "scripts": {
+    "start": "node explorer.js",
+    "minjs": "gulp"
+  },
+  "license": "MIT",
+  "repository": {
+    "url": "git://github.com/worldnuqumoritytransporters/wnt-explorer.git",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/worldnuqumoritytransporters/wnt-explorer/issues"
+  },
+  "browser": {
+    "request": "browser-request",
+    "secp256k1": "secp256k1/js"
+  },
+  "dependencies": {
+    "async": "^2.1.5",
+    "byteballcore": "git+https://github.com/worldnuqumoritytransporters/wntcore.git",
+    "express": "^4.14.0",
+    "moment": "^2.17.1",
+    "socket.io": "^1.7.1"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-rename": "^1.2.2",
+    "gulp-uglify": "^2.0.0"
+  }
+}
