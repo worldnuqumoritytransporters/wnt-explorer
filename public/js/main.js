@@ -1251,8 +1251,9 @@ function convertPosPanToPosScroll(posY, topPos) {
 //Numbers
 
 function numberFormat(number) {
-	number = (parseInt(number) * 0.000001);
-	number = Math.round(number * 100000000) / 100000000;
+  number = (parseInt(number) * 0.000001);
+  number = Math.round(number * 100000000) / 100000000;
+  number = number.toString();
 	return number.replace(new RegExp("^(\\d{" + (number.length % 3 ? number.length % 3 : 0) + "})(\\d{3})", "g"), "$1 $2").replace(/(\d{3})+?/gi, "$1 ").trim().replace(/\s/gi, ",");
 }
 
