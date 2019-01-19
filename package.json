@@ -1,12 +1,13 @@
 {
   "name": "wnt-explorer",
-  "description": "wnt explorer",
-  "author": "wnt",
+  "description": "Wnt explorer",
+  "author": "Wnt",
   "version": "0.1.0",
   "main": "start.js",
   "keywords": [
     "explorer",
     "wnt",
+    "DAG",
     "full node"
   ],
   "scripts": {
@@ -27,7 +28,7 @@
   },
   "dependencies": {
     "async": "^2.1.5",
-    "byteballcore": "git+https://github.com/worldnuqumoritytransporters/wntcore.git",
+    "wntcore": "git+https://github.com/worldnuqumoritytransporters/wntcore.git",
     "express": "^4.14.0",
     "moment": "^2.17.1",
     "socket.io": "^1.7.1"

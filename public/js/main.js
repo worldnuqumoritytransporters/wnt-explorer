@@ -31,23 +31,33 @@ function init(_nodes, _edges) {
 	_cy.center(_cy.nodes()[0]);
 	page = 'dag';
 
-	if (location.hash && location.hash.length == 45) {
+	var currHash = getUrlHashKey();
+	if (currHash && currHash.length == 45) {
 		notLastUnitUp = true;
-		highlightNode(location.hash.substr(1));
+		highlightNode(currHash.substr(1));
 	}
 	isInit = true;
 }
 
 function start() {
-	if (!location.hash || (location.hash.length != 45 && location.hash.length != 33)) {
+	var currHash = getUrlHashKey();
+	if (!currHash || (currHash.length != 45 && currHash.length != 33)) {
 		socket.emit('start', {type: 'last'});
 	}
-	else if (location.hash.length == 45) {
-		socket.emit('start', {type: 'unit', unit: location.hash.substr(1)});
+	else if (currHash.length == 45) {
+		socket.emit('start', {type: 'unit', unit: currHash.substr(1)});
 		notLastUnitUp = true;
 	}
-	else if (location.hash.length == 33) {
-		socket.emit('start', {type: 'address', address: location.hash.substr(1)});
+	else if (currHash.length == 33) {
+		var currHashParams = getUrlHashParams();
+		var paramAsset = currHashParams.asset;
+		socket.emit('start', {
+			type: 'address',
+			address: currHash.substr(1),
+			filter: {
+				asset: paramAsset
+			}
+		});
 		$('#addressInfo').show();
 	}
 }
@@ -520,7 +530,7 @@ function highlightNode(unit) {
 	if (el.length && phantoms[unit] === undefined && phantomsTop[unit] === undefined) {
 		var extent = _cy.extent();
 		var elPositionY = el.position().y;
-		lastActiveUnit = location.hash.substr(1);
+		lastActiveUnit = getUrlHashKey().substr(1);
 		el.addClass('active');
 		activeNode = el.id();
 		socket.emit('info', {unit: activeNode});
@@ -609,14 +619,23 @@ function goToTop() {
 
 //events
 window.addEventListener('hashchange', function() {
-	if (location.hash.length == 45) {
-		highlightNode(location.hash.substr(1));
+	var currHash = getUrlHashKey();
+	if (currHash.length == 45) {
+		highlightNode(currHash.substr(1));
 		if ($('#addressInfo').css('display') == 'block') {
 			$('#addressInfo').hide();
 		}
 	}
-	else if (location.hash.length == 33) {
-		socket.emit('start', {type: 'address', address: location.hash.substr(1)});
+	else if (currHash.length == 33) {
+		var currHashParams = getUrlHashParams();
+		var paramAsset = currHashParams.asset;
+		socket.emit('start', {
+			type: 'address',
+			address: currHash.substr(1),
+			filter: {
+				asset: paramAsset,
+			},
+		});
 	}
 });
 
@@ -713,7 +732,7 @@ function generateMessageInfo(messages, transfersInfo, outputsUnit, assocCommissi
 				'<div class="message">' +
 				'<div class="message_app infoTitleChild" onclick="showHideBlock(event, \'message_' + blockId + '\')">';
 			if (message.app == 'payment') {
-				messagesOut += message.app.substr(0, 1).toUpperCase() + message.app.substr(1) + ' in ' + (asset == 'null' ? 'WNT' : asset);
+				messagesOut += message.app.substr(0, 1).toUpperCase() + message.app.substr(1) + ' in ' + (asset == 'null' ? 'bytes' : asset);
 			}
 			else if (message.app == 'asset') {
 				messagesOut += 'Definition of new asset';
@@ -747,7 +766,7 @@ function generateMessageInfo(messages, transfersInfo, outputsUnit, assocCommissi
 								key = input.from_main_chain_index + '_' + input.to_main_chain_index;
 								var objName = (input.type === 'headers_commission' ? 'headers' : (input.type === 'witnessing' ? 'witnessing' : false));
 								if (objName) {
-									messagesOut += '<div><span class="numberFormat">' + assocCommissions[objName][key].sum + '</span> WNTs of ' + objName + ' commissions on <a href="#' + assocCommissions[objName][key].address + '">' + assocCommissions[objName][key].address + '</a>' +
+									messagesOut += '<div><span class="numberFormat">' + assocCommissions[objName][key].sum + '</span> bytes of ' + objName + ' commissions on <a href="#' + assocCommissions[objName][key].address + '">' + assocCommissions[objName][key].address + '</a>' +
 										' from mci ' + assocCommissions[objName][key].from_mci + ' to mci ' + assocCommissions[objName][key].to_mci + '</div>';
 								}
 							}
@@ -882,10 +901,16 @@ socket.on('new', function(data) {
 	setChangesStableUnits(data.arrStableUnits);
 });
 
-function generateTransactionsList(objTransactions, address) {
+function generateTransactionsList(objTransactions, address, filter) {
+	filter = filter || {};
 	var transaction, addressOut, _addressTo, listTransactions = '';
+	var filterAssetKey = filter.asset;
 	for (var k in objTransactions) {
 		transaction = objTransactions[k];
+		var transactionAssetKey = transaction.asset || 'bytes';
+		if (filterAssetKey && filterAssetKey !== 'all' && transactionAssetKey !== filterAssetKey) {
+			continue;
+		}
 
 		listTransactions += '<tr>' +
 			'<th class="transactionUnit" colspan="2" align="left">' +
@@ -907,14 +932,14 @@ function generateTransactionsList(objTransactions, address) {
 					listTransactions += '<div class="transactionUnitListAddress">' +
 						'<div>' + addressOut + ' ' + commissionName + ' commissions from mci ' + objFrom.from_mci +
 						' to mci ' + objFrom.to_mci + '.' +
-						' Sum: <span class="numberFormat">' + objFrom.sum + '</span> WNTs</div>' +
+						' Sum: <span class="numberFormat">' + objFrom.sum + '</span> bytes</div>' +
 						'</div>';
 				}
 			}
 			else {
 				addressOut = objFrom.address == address ? '<span class="thisAddress">' + objFrom.address + '</span>' : '<a href="#' + objFrom.address + '">' + objFrom.address + '</a>';
 				listTransactions += '<div class="transactionUnitListAddress"><div>' + addressOut + '</div>' +
-					'<div>(<span class="numberFormat">' + objFrom.amount + '</span> ' + (transaction.asset == null ? 'WNTs' : transaction.asset) + ')</div></div>';
+					'<div>(<span class="numberFormat">' + objFrom.amount + '</span> ' + (transaction.asset == null ? 'bytes' : transaction.asset) + ')</div></div>';
 			}
 		});
 		listTransactions += '</td><td><img width="32" src="' + (transaction.spent ? '/img/red_right2.png' : '/img/green_right2.png') + '"></td><td>';
@@ -923,7 +948,7 @@ function generateTransactionsList(objTransactions, address) {
 			addressOut = _addressTo.address == address ? '<span class="thisAddress">' + _addressTo.address + '</span>' : '<a href="#' + _addressTo.address + '">' + _addressTo.address + '</a>';
 
 			listTransactions += '<div class="transactionUnitListAddress"><div>' + addressOut + '</div>' +
-				'<div>(<span class="numberFormat">' + _addressTo.amount + '</span> ' + (transaction.asset == null ? 'WNTs' : transaction.asset) + ', ' +
+				'<div>(<span class="numberFormat">' + _addressTo.amount + '</span> ' + (transaction.asset == null ? 'bytes' : transaction.asset) + ', ' +
 				(_addressTo.spent === 0 ? 'not spent' : 'spent in ' + '<a href="#' + _addressTo.spent + '">' + _addressTo.spent + '</a>') +
 				')</div></div>';
 		}
@@ -932,45 +957,50 @@ function generateTransactionsList(objTransactions, address) {
 	return listTransactions;
 }
 
-socket.on('addressInfo', function(data) {
-	if (data) {
-		var listUnspent = '', balance = '';
-		lastInputsROWID = data.newLastInputsROWID;
-		lastOutputsROWID = data.newLastOutputsROWID;
-		nextPageTransactionsEnd = data.end;
-		for (var k in data.objBalance) {
-			if (k === 'bytes') {
-				balance += '<div><span class="numberFormat">' + data.objBalance[k] + '</span> WNTs</div>';
+
+var addressInfoContent = {
+	currAddress: null,
+	currAssetKey: null,
+	setAddress: function (data) {
+		this.currAddress = data.address;
+
+		$('#address').html(data.address);
+	},
+	setBalance: function (data) {
+		var objBalance = data.objBalance;
+		var resultStr = '';
+
+		for (var assetKey in objBalance) {
+			var balance = objBalance[assetKey];
+			if (assetKey === 'bytes') {
+				resultStr += '<div><span class="numberFormat">' + balance + '</span> bytes</div>';
 			}
 			else {
-				balance += '<div><span class="numberFormat">' + data.objBalance[k] + '</span> of ' + k + '</div>';
+				resultStr += '<div><span class="numberFormat">' + balance + '</span> of ' + assetKey + '</div>';
 			}
 		}
-		if(data.unspent) {
-			data.unspent.forEach(function(row) {
-				listUnspent += '<div><a href="#' + row.unit + '">' + row.unit + '</a> (<span class="numberFormat">' + row.amount + '</span> ' + (row.asset == null ? 'WNTs' : row.asset) + ')</div>';
-			});
+
+		$('#balance').html(resultStr);
+	},
+	changeAsset: function (newAssetKey) {
+		updateUrlHashWithParams({asset: newAssetKey});
+	},
+	setAssets: function (data) {
+		var objBalance = data.objBalance;
+		var assetsOptions = '<option value="all" ' + (this.currAssetKey==='all' ? 'selected' : '') + '>All</option>';
+		
+		for (var assetKey in objBalance) {
+			assetsOptions += [
+				'<option value="' + assetKey + '" ' + (assetKey === this.currAssetKey ? 'selected' : '') + '>',
+				assetKey,
+				'</option>'
+			].join('');
 		}
-		$('#address').html(data.address);
-		$('#balance').html(balance);
-		$('#listUnspent').html(listUnspent);
-		var transactionsList = generateTransactionsList(data.objTransactions, data.address);
-		if(transactionsList) {
-			$('#listUnits').html(transactionsList);
-			$('#titleListTransactions').show();
-		}else{
-			$('#listUnits').html('');
-			$('#titleListTransactions').hide();
-		}
-		if (listUnspent !== '') {
-			$('#blockListUnspent').show();
-		}
-		else {
-			$('#blockListUnspent').hide();
-		}
-		if ($('#addressInfo').css('display') == 'none') {
-			$('#addressInfo').show();
-		}
+
+		$('#filterAddressAssets').html(assetsOptions);
+		$('#addressAssets').show();
+	},
+	setDefinition: function (data) {
 		if (data.definition) {
 			$('#definitionTitleInAddress').show();
 			$('#definition').html('<pre>' + JSON.stringify(JSON.parse(data.definition), null, '   ') + '</pre>');
@@ -980,6 +1010,94 @@ socket.on('addressInfo', function(data) {
 				$('#definitionTitleInAddress').addClass('hideTitle');
 			}
 			$('#definitionTitleInAddress').hide();
+		}
+	},
+	setUnspent: function (data) {
+		var currAssetKey = this.currAssetKey;
+		var listUnspent = '';
+
+		if(data.unspent) {
+			data.unspent.forEach(function (row) {
+				var rowAssetKey = row.asset || 'bytes';
+				if (currAssetKey !== 'all' && rowAssetKey !== currAssetKey) {
+					return;
+				}
+
+				listUnspent += [
+					'<div>',
+					'<a href="#' + row.unit + '">' + row.unit + '</a> ',
+					'(<span class="numberFormat">' + row.amount + '</span> ',
+					(row.asset == null ? 'bytes' : row.asset) + ')',
+					'</div>'
+				].join('');
+			});
+		}
+
+		$('#listUnspent').html(listUnspent);
+
+		if (listUnspent !== '') {
+			$('#blockListUnspent').show();
+		} else {
+			$('#blockListUnspent').hide();
+		}
+	},
+	setTransactions: function (data) {
+		var transactionsList = generateTransactionsList(data.objTransactions, data.address, {
+			asset: this.currAssetKey,
+		});
+		if (transactionsList) {
+			$('#listUnits').html(transactionsList);
+			$('#titleListTransactions').show();
+		} else {
+			$('#listUnits').html('');
+			$('#titleListTransactions').hide();
+		}
+	},
+	setAdditionalData: function (data) {
+		lastInputsROWID = data.newLastInputsROWID;
+		lastOutputsROWID = data.newLastOutputsROWID;
+		nextPageTransactionsEnd = data.end;
+	},
+	appendTransactions: function (data) {
+		this.appendAdditionalData(data);
+		var transactionsList = generateTransactionsList(data.objTransactions, data.address, {
+			asset: this.currAssetKey,
+		});
+		if (transactionsList) {
+			$('#listUnits').append(transactionsList);
+		}
+	},
+	appendAdditionalData: function (data) {
+		if (data.newLastOutputsROWID && data.newLastOutputsROWID) {
+			lastInputsROWID = data.newLastInputsROWID;
+			lastOutputsROWID = data.newLastOutputsROWID;
+		}
+		nextPageTransactionsEnd = data.end;
+	},
+	setNew: function (assetKey, data) {
+		this.currAssetKey = assetKey;
+		this.setAddress(data);
+		this.setBalance(data);
+		this.setDefinition(data);
+		this.setAssets(data);
+		this.setAdditionalData(data);
+		this.setUnspent(data);
+		this.setTransactions(data);
+	}
+};
+
+function changeAsset(sel) {
+	addressInfoContent.changeAsset(sel.value);
+}
+
+socket.on('addressInfo', function(data) {
+	if (data) {
+		var currHashParams = getUrlHashParams();
+		var currAssetKey = currHashParams.asset || 'all';
+		addressInfoContent.setNew(currAssetKey, data);
+
+		if ($('#addressInfo').css('display') == 'none') {
+			$('#addressInfo').show();
 		}
 		page = 'address';
 		formatAllNumbers()
@@ -993,12 +1111,7 @@ socket.on('addressInfo', function(data) {
 
 socket.on('nextPageTransactions', function(data) {
 	if (data) {
-		if (data.newLastOutputsROWID && data.newLastOutputsROWID) {
-			lastInputsROWID = data.newLastInputsROWID;
-			lastOutputsROWID = data.newLastOutputsROWID;
-		}
-		nextPageTransactionsEnd = data.end;
-		$('#listUnits').append(generateTransactionsList(data.objTransactions, data.address));
+		addressInfoContent.appendTransactions(data);
 		formatAllNumbers();
 	}
 	bWaitingForNextPageTransactions = false;
@@ -1039,11 +1152,18 @@ function getHighlightNode(unit) {
 }
 
 function getNextPageTransactions() {
-	if (!bWaitingForNextPageTransactions && location.hash.length == 33) {
+	var currHash = getUrlHashKey();
+	if (!bWaitingForNextPageTransactions && currHash.length == 33) {
+		var currHashParams = getUrlHashParams();
+		var paramAsset = currHashParams.asset;
+
 		socket.emit('nextPageTransactions', {
-			address: location.hash.substr(1),
+			address: currHash.substr(1),
 			lastInputsROWID: lastInputsROWID,
-			lastOutputsROWID: lastOutputsROWID
+			lastOutputsROWID: lastOutputsROWID,
+			filter: {
+				asset: paramAsset,
+			},
 		});
 		bWaitingForNextPageTransactions = true;
 	}
@@ -1132,10 +1252,7 @@ function convertPosPanToPosScroll(posY, topPos) {
 //Numbers
 
 function numberFormat(number) {
-	number = (parseInt(number) * 0.000001);
-	number = Math.round(number * 100000000) / 100000000;
-	number = number.toString();
-	  return number.replace(new RegExp("^(\\d{" + (number.length % 3 ? number.length % 3 : 0) + "})(\\d{3})", "g"), "$1$2").replace(/(\d{3})+?/gi, "$1").trim();
+	return number.replace(new RegExp("^(\\d{" + (number.length % 3 ? number.length % 3 : 0) + "})(\\d{3})", "g"), "$1 $2").replace(/(\d{3})+?/gi, "$1 ").trim().replace(/\s/gi, ",");
 }
 
 function formatAllNumbers() {
@@ -1176,4 +1293,49 @@ function htmlEscape(str) {
 		.replace(/'/g, '&#39;')
 		.replace(/</g, '&lt;')
 		.replace(/>/g, '&gt;');
+}
+
+//Url hash history
+function getUrlHashKey() {
+	var currHash = window.location.hash;
+	var currHashPrefix = '';
+	if (currHash) {
+		var currHashParts = currHash.split('?');
+		currHashPrefix = currHashParts[0];
+	}
+	return currHashPrefix;
+}
+
+function getUrlHashParams() {
+	var currHash = window.location.hash;
+	var currHashParams = {};
+	if (currHash) {
+		var currHashParts = currHash.split('?');
+		if (currHashParts.length >= 2) {
+			currHashParams = parseQueryParamsStrToObj(currHashParts[1]);
+		}
+	}
+	return currHashParams;
+}
+
+function updateUrlHashWithParams(params) {
+	var currHash = getUrlHashKey();
+	var currHashParams = getUrlHashParams();
+
+	var objResultParams = Object.assign({}, currHashParams, params);
+	var strResultParams = stringifyQueryParamsObjToStr(objResultParams);
+	
+	var resultUrl = currHash + (strResultParams.length ? ('?' + strResultParams) : '');
+
+	window.location.hash = resultUrl;
+}
+
+function parseQueryParamsStrToObj(str) {
+	return JSON.parse('{"' + decodeURIComponent(decodeURI(str).replace(/"/g, '\\"').replace(/&/g, '","').replace(/=/g,'":"')) + '"}');
+}
+
+function stringifyQueryParamsObjToStr(obj) {
+	return Object.keys(obj).map(function (k) {
+		return encodeURIComponent(k) + "=" + encodeURIComponent(obj[k]);
+	}).join('&');
 }

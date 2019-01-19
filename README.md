@@ -1,2 +1,2 @@
-# worldnuqumoritytransporters-explorer
+# wnt-explorer
 View the DAG and all public transactions
